@@ -43,7 +43,7 @@ Install the Kubernetes binaries:
   chmod +x kube-apiserver \
     kube-controller-manager \
     kube-scheduler kubectl
-    
+
   mv kube-apiserver \
     kube-controller-manager \
     kube-scheduler kubectl \
@@ -111,10 +111,10 @@ mv kube-scheduler.service /etc/systemd/system/
 ```bash
 {
   systemctl daemon-reload
-  
+
   systemctl enable kube-apiserver \
     kube-controller-manager kube-scheduler
-    
+
   systemctl start kube-apiserver \
     kube-controller-manager kube-scheduler
 }

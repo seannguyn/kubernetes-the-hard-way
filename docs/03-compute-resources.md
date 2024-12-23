@@ -10,7 +10,7 @@ This tutorial will leverage a text file, which will serve as a machine database,
 IPV4_ADDRESS FQDN HOSTNAME POD_SUBNET
 ```
 
-Each of the columns corresponds to a machine IP address `IPV4_ADDRESS`, fully qualified domain name `FQDN`, host name `HOSTNAME`, and the IP subnet `POD_SUBNET`. Kubernetes assigns one IP address per `pod` and the `POD_SUBNET` represents the unique IP address range assigned to each machine in the cluster for doing so.  
+Each of the columns corresponds to a machine IP address `IPV4_ADDRESS`, fully qualified domain name `FQDN`, host name `HOSTNAME`, and the IP subnet `POD_SUBNET`. Kubernetes assigns one IP address per `pod` and the `POD_SUBNET` represents the unique IP address range assigned to each machine in the cluster for doing so.
 
 Here is an example machine database similar to the one used when creating this tutorial. Notice the IP addresses have been masked out. Your machines can be assigned any IP address as long as each machine is reachable from each other and the `jumpbox`.
 
@@ -19,12 +19,19 @@ cat machines.txt
 ```
 
 ```text
-XXX.XXX.XXX.XXX server.kubernetes.local server  
+XXX.XXX.XXX.XXX server.kubernetes.local server
 XXX.XXX.XXX.XXX node-0.kubernetes.local node-0 10.200.0.0/24
 XXX.XXX.XXX.XXX node-1.kubernetes.local node-1 10.200.1.0/24
 ```
 
-Now it's your turn to create a `machines.txt` file with the details for the three machines you will be using to create your Kubernetes cluster. Use the example machine database from above and add the details for your machines. 
+Now it's your turn to create a `machines.txt` file with the details for the three machines you will be using to create your Kubernetes cluster. Use the example machine database from above and add the details for your machines.
+
+Run these commands to find out about nodes private IP
+```bash
+echo "server private IP:  $(terraform -chdir=aws output -raw server_private_ip)"  && \
+echo "node0 private IP:   $(terraform -chdir=aws output -raw node0_private_ip)"   && \
+echo "node1 private IP:   $(terraform -chdir=aws output -raw node1_private_ip)"
+```
 
 ## Configuring SSH Access
 
@@ -32,67 +39,31 @@ SSH will be used to configure the machines in the cluster. Verify that you have 
 
 ### Enable root SSH Access
 
-If `root` SSH access is enabled for each of your machines you can skip this section.
+As mentioned earlier, we are going to enable `root` access over SSH in order to streamline the steps in this tutorial. Security is a tradeoff, and in this case, we are optimizing for convenience.
 
-By default, a new `debian` install disables SSH access for the `root` user. This is done for security reasons as the `root` user has total administrative control of unix-like systems. If a weak password is used on a machine connected to the internet, well, let's just say it's only a matter of time before your machine belongs to someone else. As mentioned earlier, we are going to enable `root` access over SSH in order to streamline the steps in this tutorial. Security is a tradeoff, and in this case, we are optimizing for convenience. Log on to each machine via SSH using your user account, then switch to the `root` user using the `su` command:
+Enabling `root` SSH access for `jumpbox`, `server`, `node0`, and `node1` is done in `main.tf`.
 
-```bash
-su - root
-```
-
-Edit the `/etc/ssh/sshd_config` SSH daemon configuration file and set the `PermitRootLogin` option to `yes`:
+Populate `/root/.ssh/known_hosts` on `jumphost`
 
 ```bash
-sed -i \
-  's/^#PermitRootLogin.*/PermitRootLogin yes/' \
-  /etc/ssh/sshd_config
-```
-
-Restart the `sshd` SSH server to pick up the updated configuration file:
-
-```bash
-systemctl restart sshd
-```
-
-### Generate and Distribute SSH Keys
-
-In this section you will generate and distribute an SSH keypair to the `server`, `node-0`, and `node-1`, machines, which will be used to run commands on those machines throughout this tutorial. Run the following commands from the `jumpbox` machine.
-
-Generate a new SSH key:
-
-```bash
-ssh-keygen
-```
-
-```text
-Generating public/private rsa key pair.
-Enter file in which to save the key (/root/.ssh/id_rsa): 
-Enter passphrase (empty for no passphrase): 
-Enter same passphrase again: 
-Your identification has been saved in /root/.ssh/id_rsa
-Your public key has been saved in /root/.ssh/id_rsa.pub
-```
-
-Copy the SSH public key to each machine:
-
-```bash
-while read IP FQDN HOST SUBNET; do 
-  ssh-copy-id root@${IP}
+while read IP FQDN HOST SUBNET; do
+  ssh-keyscan -t ed25519 ${IP} >> /root/.ssh/known_hosts
 done < machines.txt
 ```
 
-Once each key is added, verify SSH public key access is working:
+Verify SSH public key access is working:
 
 ```bash
-while read IP FQDN HOST SUBNET; do 
+while read IP FQDN HOST SUBNET; do
+  printf "${HOST}: ";
   ssh -n root@${IP} uname -o -m
 done < machines.txt
 ```
 
 ```text
-aarch64 GNU/Linux
-aarch64 GNU/Linux
-aarch64 GNU/Linux
+server: aarch64 GNU/Linux
+node-0: aarch64 GNU/Linux
+node-1: aarch64 GNU/Linux
 ```
 
 ## Hostnames
@@ -104,8 +75,8 @@ To configure the hostname for each machine, run the following commands on the `j
 Set the hostname on each machine listed in the `machines.txt` file:
 
 ```bash
-while read IP FQDN HOST SUBNET; do 
-    CMD="sed -i 's/^127.0.1.1.*/127.0.1.1\t${FQDN} ${HOST}/' /etc/hosts"
+while read IP FQDN HOST SUBNET; do
+    CMD="sed -i 's/^127.0.0.1.*/127.0.0.1\t${FQDN} ${HOST}/' /etc/hosts"
     ssh -n root@${IP} "$CMD"
     ssh -n root@${IP} hostnamectl hostname ${HOST}
 done < machines.txt
@@ -129,17 +100,12 @@ node-1.kubernetes.local
 
 In this section you will generate a `hosts` file which will be appended to `/etc/hosts` file on `jumpbox` and to the `/etc/hosts` files on all three cluster members used for this tutorial. This will allow each machine to be reachable using a hostname such as `server`, `node-0`, or `node-1`.
 
-Create a new `hosts` file and add a header to identify the machines being added:
+Create a new `hosts` then append a host entry for each machine in the `machines.txt`:
 
 ```bash
 echo "" > hosts
 echo "# Kubernetes The Hard Way" >> hosts
-```
-
-Generate a host entry for each machine in the `machines.txt` file and append it to the `hosts` file:
-
-```bash
-while read IP FQDN HOST SUBNET; do 
+while read IP FQDN HOST SUBNET; do
     ENTRY="${IP} ${FQDN} ${HOST}"
     echo $ENTRY >> hosts
 done < machines.txt
@@ -193,6 +159,13 @@ XXX.XXX.XXX.XXX node-1.kubernetes.local node-1
 ```
 
 At this point you should be able to SSH to each machine listed in the `machines.txt` file using a hostname.
+
+Append entry to `known_hosts` on `jumpbox`
+```bash
+for host in server node-0 node-1
+  do ssh-keyscan -t ed25519 ${host} >> /root/.ssh/known_hosts
+done
+```
 
 ```bash
 for host in server node-0 node-1

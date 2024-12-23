@@ -41,17 +41,17 @@ ssh root@node-1 <<EOF
 EOF
 ```
 
-## Verification 
+## Verification
 
 ```bash
 ssh root@server ip route
 ```
 
 ```text
-default via XXX.XXX.XXX.XXX dev ens160 
-10.200.0.0/24 via XXX.XXX.XXX.XXX dev ens160 
-10.200.1.0/24 via XXX.XXX.XXX.XXX dev ens160 
-XXX.XXX.XXX.0/24 dev ens160 proto kernel scope link src XXX.XXX.XXX.XXX 
+default via XXX.XXX.XXX.XXX dev ens160
+10.200.0.0/24 via XXX.XXX.XXX.XXX dev ens160
+10.200.1.0/24 via XXX.XXX.XXX.XXX dev ens160
+XXX.XXX.XXX.0/24 dev ens160 proto kernel scope link src XXX.XXX.XXX.XXX
 ```
 
 ```bash
@@ -59,9 +59,9 @@ ssh root@node-0 ip route
 ```
 
 ```text
-default via XXX.XXX.XXX.XXX dev ens160 
-10.200.1.0/24 via XXX.XXX.XXX.XXX dev ens160 
-XXX.XXX.XXX.0/24 dev ens160 proto kernel scope link src XXX.XXX.XXX.XXX 
+default via XXX.XXX.XXX.XXX dev ens160
+10.200.1.0/24 via XXX.XXX.XXX.XXX dev ens160
+XXX.XXX.XXX.0/24 dev ens160 proto kernel scope link src XXX.XXX.XXX.XXX
 ```
 
 ```bash
@@ -69,9 +69,9 @@ ssh root@node-1 ip route
 ```
 
 ```text
-default via XXX.XXX.XXX.XXX dev ens160 
-10.200.0.0/24 via XXX.XXX.XXX.XXX dev ens160 
-XXX.XXX.XXX.0/24 dev ens160 proto kernel scope link src XXX.XXX.XXX.XXX 
+default via XXX.XXX.XXX.XXX dev ens160
+10.200.0.0/24 via XXX.XXX.XXX.XXX dev ens160
+XXX.XXX.XXX.0/24 dev ens160 proto kernel scope link src XXX.XXX.XXX.XXX
 ```
 
 

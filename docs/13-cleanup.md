@@ -8,4 +8,8 @@ Previous versions of this guide made use of GCP resources for various aspects of
 
 Clean up is as simple as deleting all virtual machines you created for this exercise.
 
+```bash
+make down
+```
+
 Next: [Start Over](../README.md)
